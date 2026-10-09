@@ -1,0 +1,1 @@
+bash eval.sh beat_block_hammer demo_clean pi0_base demo_clean 0 4
