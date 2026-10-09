@@ -2,6 +2,9 @@ __pycache__/
 *.py[cod]
 .cache/
 data/
-assets/
+assets/*
+!assets/_download.py
+envs/curobo/
+*.zip
 *.hdf5
 .DS_Store
