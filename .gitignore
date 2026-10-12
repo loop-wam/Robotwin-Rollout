@@ -5,6 +5,15 @@ data/
 assets/*
 !assets/_download.py
 envs/curobo/
+envs/curobo
 *.zip
 *.hdf5
 .DS_Store
+
+# Local notes / ad-hoc lists / rollout dumps (do not commit)
+LOCAL.md
+task_list.txt
+rollout_data/
+
+# Downloaded π0.5 weights
+policy/pi05/checkpoints/

@@ -55,15 +55,34 @@ python -m pip install setuptools==69.5.1
 
 Apply the two patches above, then rerun `bash script/_install.sh` only if the `sed` steps have not run yet.
 
+For π0.5, also install the OpenPI stack under `policy/pi05` (see the [RoboTwin π0.5 docs](https://robotwin-platform.github.io/doc/usage/Pi05.html)):
+
+```bash
+conda activate RoboTwin
+cd policy/pi05
+pip install uv
+GIT_LFS_SKIP_SMUDGE=1 uv sync
+```
+
 ## Assets
 
-Objects, textures, and embodiments are not in git. They come from the Hugging Face dataset [TianxingChen/RoboTwin2.0](https://huggingface.co/datasets/TianxingChen/RoboTwin2.0). If the download is rate-limited, run `huggingface-cli login` first.
+Objects, textures, and embodiments are not in git.
+
+**Option A — download** from [TianxingChen/RoboTwin2.0](https://huggingface.co/datasets/TianxingChen/RoboTwin2.0):
 
 ```bash
 bash script/_download_assets.sh
 ```
 
-The script downloads `background_texture.zip`, `embodiments.zip`, and `objects.zip`, unpacks them into `assets/`, and rewrites embodiment configs so `${ASSETS_PATH}` is this checkout. After a move, run `python script/update_embodiment_config_path.py` again from the repository root.
+**Option B — soft-link** a prebuilt RoboTwin tree (objects / embodiments / background_texture + cuRobo):
+
+```bash
+ROBOTWIN_PREBUILT=/path/to/prebuilt/RoboTwin bash prepare.sh
+# or:
+# ASSETS_SRC=/path/to/assets CUROBO_SRC=/path/to/envs/curobo bash prepare.sh
+```
+
+Expected layout after either option:
 
 ```text
 assets
@@ -73,6 +92,101 @@ assets
 │       ├── config.yml
 │       └── ...
 └── objects
+envs/curobo/   # install or soft-link
 ```
 
 `envs/curobo/` and everything under `assets/` except `assets/_download.py` stay untracked.
+
+## Example: π0.5 rollout collection
+
+End-to-end flow using this repo as `ROBOTWIN_ROOT` and LoopWAM’s `rollout_collect/`.
+
+### 1. Download π0.5 weights (Hugging Face)
+
+Weights are on the dataset [loop-wam/loopwam](https://huggingface.co/datasets/loop-wam/loopwam) under `pi05_robotwin2/demo_clean/2000/` (`model.safetensors`, `metadata.pt`, `assets/.../norm_stats.json`). The dataset may be private — log in as the `loop-wam` user first if needed:
+
+```bash
+unset HF_TOKEN HUGGING_FACE_HUB_TOKEN
+hf auth login
+
+cd "$ROBOTWIN_ROOT"
+# Optional HTTP proxy (script clears SOCKS ALL_PROXY so curl/httpx do not need socksio):
+# export http_proxy=http://HOST:PORT https_proxy=http://HOST:PORT
+bash download_pi05.sh
+# HF_ENDPOINT=https://hf-mirror.com bash download_pi05.sh
+# FORCE=1 bash download_pi05.sh
+```
+
+Installs into:
+
+```text
+policy/pi05/checkpoints/pi05_robotwin2/demo_clean/2000/
+```
+
+That path matches the defaults used by LoopWAM `collect_pi05.sh`:
+
+| Variable | Default |
+| --- | --- |
+| `TRAIN_CONFIG_NAME` | `pi05_robotwin2` |
+| `MODEL_NAME` / `TASK_CONFIG` | `demo_clean` |
+| `CHECKPOINT_ID` | `2000` |
+
+For `demo_randomized` scenes, keep this checkpoint tree and set `TASK_CONFIG=demo_randomized` (leave `MODEL_NAME=demo_clean` unless you trained a separate run name).
+
+### 2. Task list
+
+One RoboTwin task name per line:
+
+```bash
+cat > task_list.txt <<'EOF'
+adjust_bottle
+beat_block_hammer
+EOF
+```
+
+### 3. Collect rollouts
+
+```bash
+export ROBOTWIN_ROOT=/path/to/Robotwin-Rollout
+# git clone https://github.com/loop-wam/LoopWAM.git   # if needed
+
+bash /path/to/LoopWAM/rollout_collect/collect_pi05.sh \
+  task_list.txt \
+  ./rollout_data/pi05
+```
+
+Useful overrides:
+
+```bash
+TASK_CONFIG=demo_clean \
+EVAL_NUM_EPISODES=20 \
+SEED=76 \
+GPU=0 \
+TRAIN_CONFIG_NAME=pi05_robotwin2 \
+MODEL_NAME=demo_clean \
+CHECKPOINT_ID=2000 \
+  bash /path/to/LoopWAM/rollout_collect/collect_pi05.sh task_list.txt ./rollout_data/pi05
+```
+
+Dry-run (print commands only):
+
+```bash
+python /path/to/LoopWAM/rollout_collect/collect.py \
+  --policy pi05 \
+  --task-list task_list.txt \
+  --save-root ./rollout_data/pi05 \
+  --dry-run
+```
+
+Under the hood this runs `$ROBOTWIN_ROOT/script/eval_policy_gwx.py` with `policy/pi05/deploy_policy.yml`.
+
+### 4. Output
+
+```text
+rollout_data/pi05/<task>/<task_config>/data/episode*.hdf5
+rollout_data/pi05/<task>/<task_config>/scene_info.json
+rollout_data/pi05/<task>/<task_config>/instructions/episode*.json
+rollout_data/pi05/_logs/
+```
+
+Collection resumes from episodes already on disk. Convert to LeRobot with LoopWAM `rollout_collect/convert_robotwin_to_lerobot.py` when you are ready for mixed-quality training.
