@@ -10,9 +10,8 @@ envs/curobo
 *.hdf5
 .DS_Store
 
-# Local notes / ad-hoc lists / rollout dumps (do not commit)
+# Local notes / rollout dumps (do not commit)
 LOCAL.md
-task_list.txt
 rollout_data/
 
 # Downloaded π0.5 weights

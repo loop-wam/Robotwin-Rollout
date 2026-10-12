@@ -135,14 +135,7 @@ For `demo_randomized` scenes, keep this checkpoint tree and set `TASK_CONFIG=dem
 
 ### 2. Task list
 
-One RoboTwin task name per line:
-
-```bash
-cat > task_list.txt <<'EOF'
-adjust_bottle
-beat_block_hammer
-EOF
-```
+The repo ships an example `task_list.txt` (one RoboTwin task name per line). Edit it or point `collect_pi05.sh` at your own list.
 
 ### 3. Collect rollouts
 
