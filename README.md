@@ -166,4 +166,20 @@ rollout_data/pi05/<task>/<task_config>/instructions/episode*.json
 rollout_data/pi05/_logs/
 ```
 
-Collection resumes from episodes already on disk. Convert to LeRobot with LoopWAM `rollout_collect/convert_robotwin_to_lerobot.py` when you are ready for mixed-quality training.
+Collection resumes from episodes already on disk.
+
+### 5. Convert HDF5 → LeRobot (LoopWAM)
+
+For mixed-quality training, convert the collect tree with LoopWAM’s `rollout_collect/convert_robotwin_to_lerobot.py` (run from the LoopWAM checkout so `src/fastwam` imports):
+
+```bash
+cd /path/to/LoopWAM
+
+python rollout_collect/convert_robotwin_to_lerobot.py \
+  --source-root /path/to/Robotwin-Rollout/rollout_data/pi05 \
+  --output-dir ./data/robotwin2_0-ours/lerobot_format_new/pi05_processed_stitched \
+  --task-configs demo_clean demo_randomized \
+  --fps 50
+```
+
+Use `--resume` to append into an existing output dir, or `--merge-parts` to merge already-converted shards. Full flag list: `rollout_collect/README.md` in LoopWAM.
