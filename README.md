@@ -31,38 +31,20 @@ conda create -n RoboTwin python=3.10 -y
 conda activate RoboTwin
 cd Robotwin-Rollout
 bash script/_install.sh
+# π0.5 needs OpenPI / JAX (separate from the SAPIEN stack above):
+bash script/setup_pi05.sh
 ```
 
-`script/_install.sh` installs `script/requirements.txt` (SAPIEN, mplib, and the rest), pytorch3d, and [CuRobo v0.7.8](https://github.com/NVlabs/curobo) under `envs/curobo`. It then patches two installed files, the same way upstream does:
+`script/_install.sh` installs `script/requirements.txt` (SAPIEN, mplib, and the rest), optional pytorch3d, and [CuRobo v0.7.8](https://github.com/NVlabs/curobo) under `envs/curobo`. It then patches two installed files, the same way upstream does:
 
 - `sapien/wrapper/urdf_loader.py`: open URDF and SRDF as UTF-8, and look for a `.srdf` suffix
 - `mplib/planner.py`: drop the `or collide` check in the screw-plan failure condition
 
-CuRobo then pins `warp-lang==1.12.0`. A newer Warp build breaks planner init (`'Robot' object has no attribute 'left_planner'`). pytorch3d is only required for point-cloud paths. If that install fails and you do not use 3D observations, the rest of the simulator still runs.
+CuRobo then pins `warp-lang==1.12.0`. A newer Warp build breaks planner init (`'Robot' object has no attribute 'left_planner'`). pytorch3d is only required for point-cloud paths. If `git` is missing or that install fails and you do not use 3D observations, the rest of the simulator still runs (`SKIP_PYTORCH3D=1` to silence).
 
-If `bash script/_install.sh` stops partway, install the same pieces by hand:
+Soft-linked `envs/curobo` (via `prepare.sh`) may still contain a `.git` directory while the host has no `git` binary. `_install.sh` / `setup_pi05.sh` always set `SETUPTOOLS_SCM_PRETEND_VERSION` and `SETUPTOOLS_SCM_PRETEND_VERSION_FOR_NVIDIA_CUROBO` in that case so editable install works. Re-runs skip packages that already import. Useful knobs: `SKIP_REQUIREMENTS=1`, `SKIP_PYTORCH3D=1`, `SKIP_CUROBO=1`, `FORCE=1`.
 
-```bash
-python -m pip install -r script/requirements.txt
-python -m pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" --no-build-isolation
-cd envs
-git clone --branch v0.7.8 --depth 1 https://github.com/NVlabs/curobo.git
-cd curobo
-python -m pip install -e . --no-build-isolation
-python -m pip install warp-lang==1.12.0
-python -m pip install setuptools==69.5.1
-```
-
-Apply the two patches above, then rerun `bash script/_install.sh` only if the `sed` steps have not run yet.
-
-For π0.5, also install the OpenPI stack under `policy/pi05` (see the [RoboTwin π0.5 docs](https://robotwin-platform.github.io/doc/usage/Pi05.html)):
-
-```bash
-conda activate RoboTwin
-cd policy/pi05
-pip install uv
-GIT_LFS_SKIP_SMUDGE=1 uv sync
-```
+`script/setup_pi05.sh` runs `uv sync` into `policy/pi05/.venv` (Python 3.11; see the [RoboTwin π0.5 docs](https://robotwin-platform.github.io/doc/usage/Pi05.html)). It also installs CuRobo into that venv. Do not point `UV_PROJECT_ENVIRONMENT` at a conda prefix — uv cannot use it. LoopWAM `collect_pi05` auto-picks `$ROBOTWIN_ROOT/policy/pi05/.venv/bin/python` when present (override with `PI05_PYTHON`).
 
 ## Assets
 
@@ -100,6 +82,8 @@ envs/curobo/   # install or soft-link
 ## Example: π0.5 rollout collection
 
 End-to-end flow using this repo as `ROBOTWIN_ROOT` and LoopWAM’s `rollout_collect/`.
+
+Prerequisite: `bash script/_install.sh` (simulator) and `bash script/setup_pi05.sh` (OpenPI/JAX) in the same conda env you will use for collect.
 
 ### 1. Download π0.5 weights (Hugging Face)
 

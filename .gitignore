@@ -14,5 +14,6 @@ envs/curobo
 LOCAL.md
 rollout_data/
 
-# Downloaded π0.5 weights
+# Downloaded π0.5 weights + OpenPI uv env
 policy/pi05/checkpoints/
+policy/pi05/.venv/
